@@ -9,3 +9,4 @@ sentence-transformers
 chromadb
 openai
 psutil
+streamlit-autorefresh
