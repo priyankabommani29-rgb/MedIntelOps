@@ -5,7 +5,6 @@ pandas
 numpy
 scikit-learn
 plotly
-sqlite3
 sentence-transformers
 chromadb
 openai
