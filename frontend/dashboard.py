@@ -5,12 +5,17 @@ import plotly.graph_objects as go
 import sqlite3
 import psutil
 from streamlit_autorefresh import st_autorefresh
-import plotly.graph_objects as go
 import json
 
 # ------------------------------------------------
 # PAGE CONFIG
 # ------------------------------------------------
+
+st.set_page_config(
+    page_title="MedIntelOps Command Center",
+    page_icon="🏥",
+    layout="wide"
+)
 
 st.markdown("""
 <style>
@@ -21,18 +26,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.set_page_config(
-    page_title="MedIntelOps Command Center",
-    page_icon="🏥",
-    layout="wide"
-)
-
 # ------------------------------------------------
-# AUTO REFRESH
+# AUTO REFRESH (every 5 minutes so tables stay readable)
 # ------------------------------------------------
 
 st_autorefresh(
-    interval=5000,
+    interval=300000,
     key="refresh"
 )
 
@@ -202,10 +201,11 @@ else:
 # TABS
 # ------------------------------------------------
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Monitoring",
     "🚨 Incident Center",
-    "📄 Telemetry"
+    "📄 Telemetry",
+    "🗂️ Training Data"
 ])
 
 # ==================================================
@@ -214,9 +214,9 @@ tab1, tab2, tab3 = st.tabs([
 
 with tab1:
 
-# ==================================================
-# SYSTEM HEALTH OVERVIEW
-# ==================================================
+    # ==================================================
+    # SYSTEM HEALTH OVERVIEW
+    # ==================================================
 
     st.markdown("### 🖥️ System Health Overview")
 
@@ -286,10 +286,9 @@ with tab1:
 
     st.divider()
 
-
-# ==================================================
-# SYSTEM PERFORMANCE TRENDS
-# ==================================================
+    # ==================================================
+    # SYSTEM PERFORMANCE TRENDS
+    # ==================================================
 
     st.markdown("### 📈 System Performance Trends")
 
@@ -316,7 +315,6 @@ with tab1:
             use_container_width=True
         )
 
-
     with trend_col2:
 
         fig_reliability = px.line(
@@ -340,10 +338,9 @@ with tab1:
 
     st.divider()
 
-
-# ==================================================
-# ANOMALY MONITORING
-# ==================================================
+    # ==================================================
+    # ANOMALY MONITORING
+    # ==================================================
 
     st.markdown("### 🔎 Anomaly Monitoring")
 
@@ -383,9 +380,9 @@ with tab1:
 
     st.divider()
 
-# ==================================================
-# INCIDENT HEALTH SUMMARY
-# ==================================================
+    # ==================================================
+    # INCIDENT HEALTH SUMMARY
+    # ==================================================
 
     st.markdown("### 🚦 Incident Health Summary")
 
@@ -426,7 +423,6 @@ with tab1:
     )
 
     st.divider()
-
 
     # KPI CARDS
     k1, k2, k3, k4 = st.columns(4)
@@ -661,19 +657,23 @@ Critical Alerts: {critical_incidents}
         st.success(
             "No critical alerts detected."
         )
-        
+
+# ==================================================
+# INCIDENT CENTER TAB
+# ==================================================
+
 with tab2:
 
     # ==================================================
-# INCIDENT DECISION OVERVIEW
-# ==================================================
+    # INCIDENT DECISION OVERVIEW
+    # ==================================================
 
     st.markdown("### 🚦 Incident Decision Overview")
 
     decision_counts = (
-    data["decision_class"]
-    .value_counts()
-)
+        data["decision_class"]
+        .value_counts()
+    )
 
     critical_count = decision_counts.get("Critical", 0)
     investigate_count = decision_counts.get("Investigate", 0)
@@ -684,126 +684,124 @@ with tab2:
 
     with d1:
         st.metric(
-        "🔴 Critical",
-        critical_count
-    )
+            "🔴 Critical",
+            critical_count
+        )
 
     with d2:
         st.metric(
-        "🟠 Investigate",
-        investigate_count
-    )
+            "🟠 Investigate",
+            investigate_count
+        )
 
     with d3:
         st.metric(
-        "🟡 Monitor",
-        monitor_count
-    )
+            "🟡 Monitor",
+            monitor_count
+        )
 
     with d4:
         st.metric(
-        "🟢 Normal",
-        normal_count
-    )
+            "🟢 Normal",
+            normal_count
+        )
 
     st.divider()
 
     # ==================================================
-# INCIDENT DECISION DISTRIBUTION
-# ==================================================
+    # INCIDENT DECISION DISTRIBUTION
+    # ==================================================
 
     st.markdown("### 📊 Decision Distribution")
 
     decision_chart = pd.DataFrame({
-    "Decision": [
-        "Critical",
-        "Investigate",
-        "Monitor",
-        "Normal"
-    ],
-    "Count": [
-        critical_count,
-        investigate_count,
-        monitor_count,
-        normal_count
-    ]
-})
+        "Decision": [
+            "Critical",
+            "Investigate",
+            "Monitor",
+            "Normal"
+        ],
+        "Count": [
+            critical_count,
+            investigate_count,
+            monitor_count,
+            normal_count
+        ]
+    })
 
     fig_decision = px.bar(
         decision_chart,
         x="Decision",
         y="Count",
         text="Count"
-)
+    )
 
     fig_decision.update_layout(
         height=350,
         xaxis_title="Incident Classification",
         yaxis_title="Number of Requests"
-)
+    )
 
     fig_decision.update_traces(
         textposition="outside"
-)
+    )
 
     st.plotly_chart(
         fig_decision,
         use_container_width=True
-)
+    )
 
     st.divider()
 
-
     # ==================================================
-# INCIDENT PRIORITY QUEUE
-# ==================================================
+    # INCIDENT PRIORITY QUEUE
+    # ==================================================
 
     st.markdown("### 🚨 Incident Priority Queue")
 
     priority_order = {
-    "Critical": 1,
-    "Investigate": 2,
-    "Monitor": 3,
-    "Normal": 4
-}
+        "Critical": 1,
+        "Investigate": 2,
+        "Monitor": 3,
+        "Normal": 4
+    }
 
     priority_data = data.copy()
 
     priority_data["priority"] = (
-    priority_data["decision_class"]
-    .map(priority_order)
-)
+        priority_data["decision_class"]
+        .map(priority_order)
+    )
 
     priority_data = priority_data.sort_values(
-    ["priority", "final_hallucination_score"],
-    ascending=[True, False]
-)
+        ["priority", "final_hallucination_score"],
+        ascending=[True, False]
+    )
 
     incident_queue = priority_data[
-    [
-        "request_id",
-        "decision_class",
-        "decision_action",
-        "severity",
-        "final_hallucination_score",
-        "evidence_score",
-        "nli_contradiction",
-        "reliability_score"
-    ]
-].head(20)
+        [
+            "request_id",
+            "decision_class",
+            "decision_action",
+            "severity",
+            "final_hallucination_score",
+            "evidence_score",
+            "nli_contradiction",
+            "reliability_score"
+        ]
+    ].head(20)
 
     st.dataframe(
-    incident_queue,
-    use_container_width=True,
-    hide_index=True
-)
+        incident_queue,
+        use_container_width=True,
+        hide_index=True
+    )
 
     st.caption(
-    "Showing the 20 highest-priority incidents based on automated decision classification."
-)
+        "Showing the 20 highest-priority incidents based on automated decision classification."
+    )
 
     st.divider()
-
 
     st.subheader(
         "🤖 Gemini Incident Intelligence"
@@ -847,7 +845,7 @@ with tab2:
 
         for _, row in critical_data.iterrows():
 
-         st.markdown(f"""
+            st.markdown(f"""
 ### 🚨 Incident #{row['request_id']}
 
 **Severity:** {row['severity']}
@@ -935,13 +933,12 @@ Confidence:
             "System Reliability",
             f"{health_score}%"
         )
-# ==================================================
-# INCIDENT INTELLIGENCE — RAG / SHAP / HALLUCINATION
-# ==================================================
-    st.divider()
-      # ==================================================
+
+    # ==================================================
     # RAG INCIDENT INTELLIGENCE
     # ==================================================
+
+    st.divider()
 
     st.subheader("🧠 RAG Incident Intelligence")
 
@@ -949,10 +946,6 @@ Confidence:
         "Grounded incident analysis using similar historical "
         "incidents retrieved from MedIntelOps memory."
     )
-
-    # --------------------------------------------------
-    # LOAD AVAILABLE RAG ANALYSES
-    # --------------------------------------------------
 
     rag_conn = sqlite3.connect(
         "database/logs.db"
@@ -982,10 +975,6 @@ Confidence:
 
     if not rag_data.empty:
 
-        # --------------------------------------------------
-        # Keep only latest analysis for each request
-        # --------------------------------------------------
-
         latest_rag = (
             rag_data
             .drop_duplicates(
@@ -1009,10 +998,6 @@ Confidence:
             latest_rag["request_id"]
             == selected_rag_request
         ].iloc[0]
-
-        # ==================================================
-        # INCIDENT INFORMATION
-        # ==================================================
 
         incident_match = data[
             data["request_id"]
@@ -1059,10 +1044,6 @@ Confidence:
 
         st.divider()
 
-        # ==================================================
-        # AI ASSESSMENT + ROOT CAUSE
-        # ==================================================
-
         assessment_col, cause_col = st.columns(2)
 
         with assessment_col:
@@ -1089,10 +1070,6 @@ Confidence:
                 ]
             )
 
-        # ==================================================
-        # HISTORICAL PATTERN
-        # ==================================================
-
         st.markdown(
             "### 🔁 Historical Pattern"
         )
@@ -1104,10 +1081,6 @@ Confidence:
         )
 
         st.divider()
-
-        # ==================================================
-        # RETRIEVED HISTORICAL EVIDENCE
-        # ==================================================
 
         st.markdown(
             "### 🔗 Retrieved Historical Evidence"
@@ -1175,10 +1148,6 @@ Confidence:
 
         st.divider()
 
-        # ==================================================
-        # RECOMMENDED ACTIONS
-        # ==================================================
-
         action_col, outcome_col = st.columns(2)
 
         with action_col:
@@ -1231,10 +1200,6 @@ Confidence:
                 ]
             )
 
-        # ==================================================
-        # ANALYSIS METADATA
-        # ==================================================
-
         st.divider()
 
         confidence_col, generated_col = (
@@ -1279,7 +1244,6 @@ Confidence:
         )
 
     st.divider()
-
 
     # ==========================================
     # EXPLAINABLE AI — SHAP
@@ -1336,10 +1300,6 @@ Confidence:
                 == selected_request
             ].iloc[0]
 
-            # ==========================================
-            # SHAP KPI CARDS
-            # ==========================================
-
             shap_col1, shap_col2, shap_col3 = st.columns(3)
 
             with shap_col1:
@@ -1375,17 +1335,9 @@ Confidence:
                     f"{contribution:+.3f}"
                 )
 
-            # ==========================================
-            # EXPLANATION
-            # ==========================================
-
             st.info(
                 selected_shap["explanation_text"]
             )
-
-            # ==========================================
-            # SHAP CONTRIBUTION DATA
-            # ==========================================
 
             shap_features = [
                 "Latency",
@@ -1419,10 +1371,6 @@ Confidence:
                     ascending=True
                 )
             )
-
-            # ==========================================
-            # SHAP WATERFALL-STYLE CHART
-            # ==========================================
 
             colors = [
                 "#ef4444" if value > 0
@@ -1499,7 +1447,12 @@ Confidence:
             "No SHAP explanations are available. "
             "Run backend/shap_anomaly.py first."
         )
+
     st.divider()
+
+    # ==================================================
+    # HALLUCINATION INTELLIGENCE
+    # ==================================================
 
     st.subheader("🧠 Hallucination Intelligence")
 
@@ -1530,10 +1483,6 @@ Confidence:
     )
 
     hall_conn.close()
-
-    # ==================================================
-    # FINAL HALLUCINATION INTELLIGENCE — KPI CARDS
-    # ==================================================
 
     avg_final_hall = round(
         hall_data["final_hallucination_score"].mean(),
@@ -1598,9 +1547,6 @@ Confidence:
             "Critical Risk",
             critical_final
         )
-    # ==================================================
-    # RISK DISTRIBUTION
-    # ==================================================
 
     st.markdown("### 📊 Hallucination Risk Distribution")
 
@@ -1619,44 +1565,25 @@ Confidence:
     )
 
     fig_risk = px.bar(
-
         x=risk_counts.index,
-
         y=risk_counts.values,
-
         labels={
-
             "x": "Risk Level",
-
             "y": "Number of Requests"
-
         },
-
         color=risk_counts.index,
-
         text=risk_counts.values
-
     )
 
     fig_risk.update_layout(
-
         height=420,
-
         showlegend=False
-
     )
 
     st.plotly_chart(
-
         fig_risk,
-
         use_container_width=True
-
     )
-
-    # ==================================================
-    # HALLUCINATION TYPE PIE CHART
-    # ==================================================
 
     st.markdown("### 🥧 Hallucination Type Distribution")
 
@@ -1666,32 +1593,19 @@ Confidence:
     )
 
     fig_type = px.pie(
-
         values=type_counts.values,
-
         names=type_counts.index,
-
         hole=0.45
-
     )
 
     fig_type.update_layout(
-
         height=450
-
     )
 
     st.plotly_chart(
-
         fig_type,
-
         use_container_width=True
-
     )
-
-    # ==================================================
-    # TOP HIGH RISK REQUESTS
-    # ==================================================
 
     st.markdown("### 🚨 Highest Hallucination Risk Requests")
 
@@ -1701,7 +1615,6 @@ Confidence:
     ).head(10)
 
     st.dataframe(
-
         high_risk[
             [
                 "request_id",
@@ -1711,88 +1624,49 @@ Confidence:
                 "evidence_score"
             ]
         ],
-
         use_container_width=True,
-
         hide_index=True
-
     )
-
-    # ==================================================
-    # EVIDENCE SCORE TREND
-    # ==================================================
 
     st.markdown("### 📈 Evidence Score Trend")
 
     fig_evidence = px.line(
-
         hall_data,
-
         x="request_id",
-
         y="evidence_score",
-
         markers=True
-
     )
 
     fig_evidence.update_layout(
-
         height=400,
-
         xaxis_title="Request ID",
-
         yaxis_title="Evidence Score"
-
     )
 
     st.plotly_chart(
-
         fig_evidence,
-
         use_container_width=True
-
     )
-
-    # ==================================================
-    # FINAL HALLUCINATION SCORE TREND
-    # ==================================================
 
     st.markdown("### 📉 Final Hallucination Score Trend")
 
     fig_hall = px.line(
-
         hall_data,
-
         x="request_id",
-
         y="final_hallucination_score",
-
         markers=True
-
     )
 
     fig_hall.update_layout(
-
         height=400,
-
         xaxis_title="Request ID",
-
         yaxis_title="Final Hallucination Score"
-
     )
 
     st.plotly_chart(
-
         fig_hall,
-
         use_container_width=True
-
     )
-
-    # ==================================================
-    # CRITICAL HALLUCINATIONS
-    # ==================================================
 
     st.markdown("### 🔴 Critical Hallucination Feed")
 
@@ -1805,23 +1679,23 @@ Confidence:
         for _, row in critical_rows.iterrows():
 
             st.error(
-    f"""
-    Request ID: {row['request_id']}
+                f"""
+Request ID: {row['request_id']}
 
-    Final Hallucination Score: {row['final_hallucination_score']:.3f}
+Final Hallucination Score: {row['final_hallucination_score']:.3f}
 
-    Final Risk: {row['final_hallucination_risk']}
+Final Risk: {row['final_hallucination_risk']}
 
-    Evidence Score: {row['evidence_score']}
+Evidence Score: {row['evidence_score']}
 
-    NLI Contradiction: {row['nli_contradiction']:.3f}
+NLI Contradiction: {row['nli_contradiction']:.3f}
 
-    NLI Entailment: {row['nli_entailment']:.3f}
+NLI Entailment: {row['nli_entailment']:.3f}
 
-    NLI Neutral: {row['nli_neutral']:.3f}
+NLI Neutral: {row['nli_neutral']:.3f}
 
-    Type: {row['hallucination_type']}
-    """
+Type: {row['hallucination_type']}
+"""
             )
 
     else:
@@ -1829,7 +1703,6 @@ Confidence:
         st.success(
             "No critical hallucinations detected."
         )
-
 
     # ==================================================
     # UNIFIED INCIDENT INTELLIGENCE
@@ -1843,10 +1716,6 @@ Confidence:
         "Combines telemetry, SHAP explainability, "
         "hallucination analysis, RAG retrieval, and Gemini reasoning."
     )
-
-    # ------------------------------------------
-    # INCIDENT SELECTOR
-    # ------------------------------------------
 
     incident_ids = (
         data["request_id"]
@@ -1867,10 +1736,6 @@ Confidence:
     telemetry_u, shap_u, rag_u = load_unified_incident(
         selected_incident
     )
-
-    # ------------------------------------------
-    # TELEMETRY
-    # ------------------------------------------
 
     if not telemetry_u.empty:
 
@@ -1903,76 +1768,78 @@ Confidence:
                 "Model Confidence",
                 f"{incident['confidence']:.3f}"
             )
+
         with c5:
             st.metric(
-            "Decision",
-            incident["decision_class"]
-        )
-    # ------------------------------------------
-    # AUTOMATED INCIDENT DECISION
-    # ------------------------------------------
+                "Decision",
+                incident["decision_class"]
+            )
 
-    st.markdown("### 🚦 Automated Incident Decision")
+        # ------------------------------------------
+        # AUTOMATED INCIDENT DECISION
+        # ------------------------------------------
 
-    decision = incident["decision_class"]
-    action = incident["decision_action"]
-    reason = incident["decision_reason"]
+        st.markdown("### 🚦 Automated Incident Decision")
 
-    if decision == "Critical":
+        decision = incident["decision_class"]
+        action = incident["decision_action"]
+        reason = incident["decision_reason"]
 
-        st.error(
-            f"🔴 {action}\n\n{reason}"
-        )
+        if decision == "Critical":
 
-    elif decision == "Investigate":
+            st.error(
+                f"🔴 {action}\n\n{reason}"
+            )
 
-        st.warning(
-            f"🟠 {action}\n\n{reason}"
-        )
+        elif decision == "Investigate":
 
-    elif decision == "Monitor":
+            st.warning(
+                f"🟠 {action}\n\n{reason}"
+            )
 
-        st.info(
-            f"🟡 {action}\n\n{reason}"
-        )
+        elif decision == "Monitor":
 
-    else:
+            st.info(
+                f"🟡 {action}\n\n{reason}"
+            )
 
-        st.success(
-            f"🟢 {action}\n\n{reason}"
-        )
+        else:
 
-    # ------------------------------------------
-    # HALLUCINATION INTELLIGENCE
-    # ------------------------------------------
+            st.success(
+                f"🟢 {action}\n\n{reason}"
+            )
 
-    st.markdown("### 🩺 Medical Response Trustworthiness")
+        # ------------------------------------------
+        # HALLUCINATION INTELLIGENCE
+        # ------------------------------------------
 
-    h1, h2, h3, h4 = st.columns(4)
+        st.markdown("### 🩺 Medical Response Trustworthiness")
 
-    with h1:
-        st.metric(
-            "Final Hallucination Score",
-            f"{incident['final_hallucination_score']:.3f}"
-        )
+        h1, h2, h3, h4 = st.columns(4)
 
-    with h2:
-        st.metric(
-            "Hallucination Risk",
-            incident["final_hallucination_risk"]
-        )
+        with h1:
+            st.metric(
+                "Final Hallucination Score",
+                f"{incident['final_hallucination_score']:.3f}"
+            )
 
-    with h3:
-        st.metric(
-            "Evidence Score",
-            f"{incident['evidence_score']:.2f}"
-        )
+        with h2:
+            st.metric(
+                "Hallucination Risk",
+                incident["final_hallucination_risk"]
+            )
 
-    with h4:
-        st.metric(
-            "NLI Contradiction",
-            f"{incident['nli_contradiction']:.3f}"
-        )
+        with h3:
+            st.metric(
+                "Evidence Score",
+                f"{incident['evidence_score']:.2f}"
+            )
+
+        with h4:
+            st.metric(
+                "NLI Contradiction",
+                f"{incident['nli_contradiction']:.3f}"
+            )
 
     # ------------------------------------------
     # SHAP EXPLANATION
@@ -2078,23 +1945,22 @@ Confidence:
             "No RAG/Gemini analysis is available for this incident."
         )
 
+# ==================================================
+# TELEMETRY TAB
+# ==================================================
+
 with tab3:
-
-
-# ==================================================
-# TELEMETRY SUMMARY
-# ==================================================
 
     st.markdown("### 📋 Telemetry Summary")
 
     total_records = len(data)
 
     successful_requests = len(
-    data[data["error_status"] == 0]
+        data[data["error_status"] == 0]
     )
 
     failed_requests = len(
-    data[data["error_status"] != 0]
+        data[data["error_status"] != 0]
     )
 
     avg_latency = round(
@@ -2174,10 +2040,6 @@ with tab3:
 
     st.divider()
 
-    # --------------------------------------------
-    # LOW RELIABILITY REQUESTS
-    # --------------------------------------------
-
     st.subheader(
         "⚠ Low Reliability Requests"
     )
@@ -2201,23 +2063,19 @@ with tab3:
 
     st.divider()
 
-    # --------------------------------------------
-    # DATA SUMMARY
-    # --------------------------------------------
-
     st.subheader(
         "📊 Dataset Summary"
     )
 
     summary_df = pd.DataFrame({
-        "Metric":[
+        "Metric": [
             "Total Requests",
             "Anomalies",
             "Critical Incidents",
             "Average Latency",
             "Average Reliability"
         ],
-        "Value":[
+        "Value": [
             total_requests,
             anomalies,
             critical_incidents,
@@ -2236,6 +2094,107 @@ with tab3:
         summary_df,
         use_container_width=True
     )
+
+# ==================================================
+# TRAINING DATA TAB
+# ==================================================
+
+with tab4:
+
+    st.markdown("### 🗂️ Training Dataset")
+
+    st.caption(
+        "Telemetry records used to train the anomaly detection model, "
+        "plus the model's predictions and SHAP explanations."
+    )
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Rows", len(data))
+    c2.metric("Features", len(data.columns))
+    c3.metric("Missing Values", int(data.isna().sum().sum()))
+
+    st.markdown("#### Model Input Features")
+
+    feature_cols = [
+        "request_id",
+        "latency",
+        "tokens_used",
+        "confidence",
+        "error_status",
+        "reliability_score"
+    ]
+
+    feature_cols = [c for c in feature_cols if c in data.columns]
+
+    st.dataframe(
+        data[feature_cols],
+        use_container_width=True,
+        hide_index=True,
+        height=350
+    )
+
+    st.markdown("#### Feature Statistics")
+
+    st.dataframe(
+        data[feature_cols].describe(),
+        use_container_width=True
+    )
+
+    st.markdown("#### Model Predictions (SHAP)")
+
+    pred_conn = sqlite3.connect("database/logs.db")
+
+    pred_data = pd.read_sql_query(
+        "SELECT * FROM shap_explanations ORDER BY request_id",
+        pred_conn
+    )
+
+    pred_conn.close()
+
+    if not pred_data.empty:
+
+        st.dataframe(
+            pred_data,
+            use_container_width=True,
+            hide_index=True,
+            height=350
+        )
+
+    else:
+
+        st.info("No model predictions found.")
+
+    st.markdown("#### Full Dataset (all columns)")
+
+    st.dataframe(
+        data,
+        use_container_width=True,
+        height=400
+    )
+
+    d1, d2 = st.columns(2)
+
+    with d1:
+        st.download_button(
+            "⬇️ Download Training Data (CSV)",
+            data.to_csv(index=False).encode("utf-8"),
+            file_name="medintelops_training_data.csv",
+            mime="text/csv"
+        )
+
+    with d2:
+        if not pred_data.empty:
+            st.download_button(
+                "⬇️ Download Model Predictions (CSV)",
+                pred_data.to_csv(index=False).encode("utf-8"),
+                file_name="medintelops_predictions.csv",
+                mime="text/csv"
+            )
+
+# ==================================================
+# FOOTER
+# ==================================================
+
 st.divider()
 
 st.markdown("""
